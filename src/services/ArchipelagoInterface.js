@@ -1,4 +1,4 @@
-import { Client, ITEMS_HANDLING_FLAGS, SERVER_PACKET_TYPE, ConnectionStatus } from "archipelago.js"
+import { Client } from "archipelago.js"
 import Settings from './settings';
 import Permalink from './permalink';
 
@@ -30,96 +30,30 @@ class ArchipelagoInterface {
     this.APClient = new Client();
     this.events = {};
 
-    const connectionInfo = {
-      hostname: 'archipelago.gg',
-      port: parseInt(grabPort(Settings.getOptionValue(Permalink.OPTIONS.ARCHIPELAGO_LINK))),
-      game: 'The Wind Waker',
-      name: Settings.getOptionValue(Permalink.OPTIONS.ARCHIPELAGO_NAME),
-      password: null,
-      items_handling: ITEMS_HANDLING_FLAGS.REMOTE_ALL,
-    };
-
-    this.APClient.connect(connectionInfo).then(() => {
-
-      this.APClient.addListener(SERVER_PACKET_TYPE.PRINT_JSON, this.printJSONHandler); 
-
-      console.log("Connected to the server");
-      /*let locations = this.APClient.locations.checked;
-      let playerList = this.APClient.players.all;
-      let playerId;
-      let player;
-
-      for ( in playerList) {
-        if (player.name == Settings.getOptionValue(Permalink.OPTIONS.ARCHIPELAGO_NAME)){
-          playerId = player.slot;          
-        }
-        console.log(player);
-      }
-      console.log(playerId);
-      console.log(playerList);
-      console.log(this.APClient.locations.name(1,locations[3]));*/
-    })
-    .catch((error) => {
-      console.error("Failed to connect:" + error);
+    this.APClient.messages.on("message", (content) => {
+      const sanitizedContent = content.replace(/,/g, '');
+      this.emit('message', sanitizedContent);
     });
-  }
 
-  on(event, listener) {
-    if (!this.events[event]) {
-      this.events[event] = [];
-    }
-    this.events[event].push(listener);
-  }
-
-  emit(event, ...args) {
-    if (this.events[event]) {
-      this.events[event].forEach(listener => listener(...args));
-    }
-  }
-  
-
-  printJSONHandler = async (packet, rawMessage) => {
-    try {
-      this.emit('message', rawMessage);
-    } catch (error) {
-      console.error('Error parsing packet:', error);
-    }
-
-
-  }
-
-
-  // Method to simulate receiving a packet
-  receivePacket(packet) {
-    this.printJSONHandler(packet);
+    this.APClient.login(Settings.getOptionValue(Permalink.OPTIONS.ARCHIPELAGO_LINK), Settings.getOptionValue(Permalink.OPTIONS.ARCHIPELAGO_NAME))
+      .then(() => console.log("Connected to the Archipelago server!"))
+      .catch(console.error);
   }
 
   getName(){
     return Settings.getOptionValue(Permalink.OPTIONS.ARCHIPELAGO_NAME);
   }
 
+  on(event, listener) { 
+    if (!this.events[event]) { 
+      this.events[event] = []; 
+    } 
+    this.events[event].push(listener); 
+  } 
   
-  /*getCheckedLocations(){
-    let parsedArray;
-    let rawArray = this.APClient.locations.checked;
-
-    
-    return 
-  }*/
-
-}
-
-
-//Grabs Port from Server Address
-function grabPort(baseServerAddress) {
-  let regex = new RegExp('archipelago\.gg:(.*)');
-  let match = regex.exec(baseServerAddress);
-
-  if (match && match[1]){
-      return match[1]
-  }
-  else {
-      return null;
+  emit(event, ...args) {
+    if (this.events[event]) 
+    { this.events[event].forEach(listener => listener(...args)); }
   }
 }
 
